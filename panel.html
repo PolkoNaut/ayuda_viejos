@@ -965,11 +965,22 @@ async function showAdulto(id) {
   document.getElementById('link-adulto').textContent = link;
   const qrWrap = document.getElementById('qr-wrap');
   qrWrap.innerHTML = '';
-  const qrCanvas = document.createElement('canvas');
-  qrWrap.appendChild(qrCanvas);
-  QRCode.toCanvas(qrCanvas, link, { width: 220, margin: 2 }, err => {
-    if (err) console.error(err);
-  });
+  try {
+    if (typeof QRCode === 'undefined') {
+      throw new Error('Librería QR no cargada');
+    }
+    const qrCanvas = document.createElement('canvas');
+    qrWrap.appendChild(qrCanvas);
+    QRCode.toCanvas(qrCanvas, link, { width: 220, margin: 2 }, err => {
+      if (err) {
+        console.error('QR error:', err);
+        qrWrap.innerHTML = `<div style="padding: 30px; text-align:center; color: var(--text-soft); font-size: 13px;">No se pudo generar el QR<br>Usá el link de arriba.</div>`;
+      }
+    });
+  } catch (e) {
+    console.error(e);
+    qrWrap.innerHTML = `<div style="padding: 30px; text-align:center; color: var(--text-soft); font-size: 13px;">No se pudo generar el QR<br>Usá el link de arriba.</div>`;
+  }
 
   // Rutinas
   await cargarRutinasDeAdulto();
@@ -994,8 +1005,18 @@ async function cargarRutinasDeAdulto() {
     container.innerHTML = `
       <div class="empty">
         <div class="empty-icon">📋</div>
-        <p>No hay rutinas todavía.</p>
+        <p style="font-weight:700; color: var(--text); margin-bottom: 6px;">
+          Todavía no hay rutinas para ${escapeHtml(state.adultoData?.nombre || 'este adulto')}
+        </p>
+        <p style="font-size: 14px; margin-bottom: 18px;">
+          Podés cargar las 5 rutinas predeterminadas (dientes, manos, ducha, mate, vestirse)
+          o crear una nueva desde cero.
+        </p>
+        <button class="btn btn-primary" onclick="sembrarDefaultAqui()">
+          ✨ Cargar rutinas predeterminadas
+        </button>
       </div>`;
+    state.rutinasAdulto = [];
     return;
   }
 
@@ -1141,6 +1162,15 @@ async function borrarRutinaLista(id) {
     toast('Rutina borrada', 'success');
     await cargarRutinasDeAdulto();
   });
+}
+
+async function sembrarDefaultAqui() {
+  const { data, error } = await supa.rpc('sembrar_rutinas_default', {
+    p_adulto_id: state.adultoId
+  });
+  if (error) return toast(error.message, 'error');
+  toast(`${data || 5} rutinas cargadas ✓`, 'success');
+  await cargarRutinasDeAdulto();
 }
 
 async function copiarLink() {
