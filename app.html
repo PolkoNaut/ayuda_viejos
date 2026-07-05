@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#4A90E2">
+<title>Mi Rutina</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #F5F7FA;
+    --surface: #FFFFFF;
+    --primary: #4A90E2;
+    --primary-dark: #357ABD;
+    --success: #52C41A;
+    --success-dark: #389E0D;
+    --text: #2C3E50;
+    --text-soft: #6B7885;
+    --border: #E1E8ED;
+    --shadow: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.14);
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    min-height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 18px;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:focus-visible {
+    outline: 4px solid var(--primary);
+    outline-offset: 3px;
+  }
+
+  .app {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+    min-height: 100vh;
+  }
+
+  /* ============ LOADING ============ */
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    gap: 20px;
+    color: var(--text-soft);
+  }
+  .spinner {
+    width: 60px;
+    height: 60px;
+    border: 6px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ============ ERROR / NO TOKEN ============ */
+  .error-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 80vh;
+    gap: 20px;
+    padding: 40px 20px;
+  }
+  .error-icon { font-size: 100px; opacity: 0.6; }
+  .error-view h2 { color: var(--text); font-size: 26px; }
+  .error-view p { color: var(--text-soft); max-width: 480px; font-size: 17px; line-height: 1.5; }
+
+  /* ============ HOME ============ */
+  .home-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    gap: 16px;
+  }
+  .home-title-block { display: flex; align-items: center; gap: 14px; }
+  .home-avatar {
+    font-size: 48px;
+    line-height: 1;
+    background: var(--surface);
+    padding: 8px;
+    border-radius: 50%;
+    box-shadow: var(--shadow);
+    width: 74px;
+    height: 74px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .home-nombre { font-size: 24px; font-weight: 800; color: var(--primary); line-height: 1.2; }
+  .date {
+    color: var(--text-soft);
+    font-size: 15px;
+    margin-top: 4px;
+    text-transform: capitalize;
+  }
+  .home-stats {
+    background: var(--surface);
+    padding: 12px 20px;
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    text-align: center;
+    min-width: 110px;
+  }
+  .home-stats .num {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--success);
+    line-height: 1;
+  }
+  .home-stats .lbl {
+    font-size: 12px;
+    color: var(--text-soft);
+    margin-top: 4px;
+  }
+
+  /* ============ FILTRO DE MOMENTO ============ */
+  .momento-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    padding: 4px;
+    scrollbar-width: none;
+  }
+  .momento-bar::-webkit-scrollbar { display: none; }
+  .momento-chip {
+    padding: 10px 18px;
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 24px;
+    font-weight: 700;
+    font-size: 15px;
+    box-shadow: var(--shadow);
+    white-space: nowrap;
+    transition: transform 0.1s;
+  }
+  .momento-chip.active {
+    background: var(--primary);
+    color: white;
+  }
+  .momento-chip:active { transform: scale(0.96); }
+
+  /* ============ TARJETAS DE RUTINAS ============ */
+  .activities {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 20px;
+  }
+  .activity-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 28px 20px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    min-height: 210px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: 3px solid transparent;
+    color: var(--text);
+  }
+  .activity-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary);
+  }
+  .activity-card:active { transform: translateY(-2px); }
+  .activity-card.done {
+    border-color: var(--success);
+    background: linear-gradient(180deg, #F6FFEC 0%, #FFFFFF 60%);
+  }
+  .activity-icon {
+    font-size: 76px;
+    margin-bottom: 14px;
+    line-height: 1;
+  }
+  .activity-name { font-size: 20px; font-weight: 700; }
+  .activity-steps { font-size: 14px; color: var(--text-soft); margin-top: 6px; }
+  .done-check {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: var(--success);
+    color: white;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+    box-shadow: 0 2px 6px rgba(82,196,26,0.4);
+  }
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-soft);
+    grid-column: 1 / -1;
+  }
+  .empty-icon { font-size: 80px; margin-bottom: 12px; opacity: 0.5; }
+  .empty p { font-size: 18px; line-height: 1.4; }
+
+  /* ============ SECUENCIA ============ */
+  .sequence, .complete { display: none; }
+  .sequence.active, .complete.active { display: flex; flex-direction: column; }
+
+  .seq-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 12px;
+  }
+  .btn-back {
+    background: var(--surface);
+    color: var(--text);
+    padding: 14px 22px;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 700;
+    box-shadow: var(--shadow);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-back:hover { background: var(--bg); }
+  .seq-title {
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--primary);
+    text-align: center;
+    flex: 1;
+  }
+  .seq-header-spacer { min-width: 110px; }
+
+  .progress {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 28px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .progress-dot {
+    width: 44px;
+    height: 12px;
+    border-radius: 6px;
+    background: var(--border);
+    transition: background 0.3s, transform 0.3s;
+  }
+  .progress-dot.done { background: var(--success); }
+  .progress-dot.current { background: var(--primary); transform: scaleY(1.4); }
+
+  .step-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 40px 24px 48px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    min-height: 60vh;
+    justify-content: center;
+  }
+  .step-number {
+    color: var(--primary);
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: rgba(74,144,226,0.1);
+    padding: 6px 16px;
+    border-radius: 20px;
+  }
+  .step-icon {
+    font-size: 150px;
+    line-height: 1;
+    animation: fadeIn 0.4s ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .step-text {
+    font-size: 34px;
+    font-weight: 700;
+    max-width: 720px;
+    line-height: 1.35;
+    color: var(--text);
+  }
+  .step-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+    margin-top: 12px;
+    width: 100%;
+  }
+  .btn-audio {
+    background: var(--surface);
+    border: 3px solid var(--primary);
+    color: var(--primary);
+    padding: 14px 28px;
+    border-radius: 50px;
+    font-size: 18px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s;
+  }
+  .btn-audio:hover { background: rgba(74,144,226,0.08); }
+  .btn-audio.speaking {
+    background: var(--primary);
+    color: white;
+  }
+  .btn-done {
+    background: var(--success);
+    color: white;
+    padding: 24px 56px;
+    border-radius: 20px;
+    font-size: 30px;
+    font-weight: 800;
+    box-shadow: 0 6px 16px rgba(82,196,26,0.3);
+    min-width: 300px;
+    transition: transform 0.1s, background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+  }
+  .btn-done:hover { background: var(--success-dark); }
+  .btn-done:active { transform: scale(0.97); }
+
+  /* ============ COMPLETE ============ */
+  .complete {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 24px;
+    min-height: 80vh;
+    padding: 40px 20px;
+  }
+  .complete-icon {
+    font-size: 170px;
+    animation: bounce 0.7s ease-out;
+    line-height: 1;
+  }
+  @keyframes bounce {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.25); }
+    70% { transform: scale(0.95); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .complete h2 {
+    font-size: 52px;
+    color: var(--success);
+    font-weight: 800;
+  }
+  .complete p {
+    font-size: 24px;
+    color: var(--text-soft);
+    max-width: 560px;
+    line-height: 1.4;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+    padding: 22px 44px;
+    border-radius: 16px;
+    font-size: 22px;
+    font-weight: 700;
+    box-shadow: var(--shadow);
+    margin-top: 12px;
+  }
+  .btn-primary:hover { background: var(--primary-dark); }
+
+  /* ============ CONEXIÓN ============ */
+  .offline-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #FA8C16;
+    color: white;
+    text-align: center;
+    padding: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    z-index: 100;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 40px;
+    color: var(--text-soft);
+    font-size: 13px;
+  }
+  footer strong { color: var(--primary); }
+
+  /* ============ MOBILE ============ */
+  @media (max-width: 640px) {
+    .app { padding: 20px 14px 32px; }
+    .home-avatar { width: 60px; height: 60px; font-size: 38px; }
+    .home-nombre { font-size: 20px; }
+    .home-stats { min-width: 90px; padding: 10px 14px; }
+    .home-stats .num { font-size: 22px; }
+    .activities { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .activity-card { min-height: 170px; padding: 20px 12px; }
+    .activity-icon { font-size: 56px; margin-bottom: 8px; }
+    .activity-name { font-size: 16px; }
+    .activity-steps { font-size: 12px; }
+
+    .seq-title { font-size: 18px; }
+    .seq-header-spacer { min-width: 0; display: none; }
+    .btn-back { padding: 12px 16px; font-size: 15px; }
+    .progress-dot { width: 32px; height: 10px; }
+
+    .step-card { padding: 28px 16px 36px; min-height: 65vh; }
+    .step-icon { font-size: 110px; }
+    .step-text { font-size: 26px; }
+    .btn-done { font-size: 24px; padding: 20px 40px; min-width: 240px; }
+    .btn-audio { font-size: 16px; padding: 12px 22px; }
+
+    .complete-icon { font-size: 120px; }
+    .complete h2 { font-size: 38px; }
+    .complete p { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="offline-banner" class="offline-banner" style="display:none;">
+  Sin conexión — usando datos guardados
+</div>
+
+<div class="app">
+
+  <!-- ============ LOADING ============ -->
+  <div id="view-loading" class="loading">
+    <div class="spinner"></div>
+    <p>Cargando...</p>
+  </div>
+
+  <!-- ============ ERROR ============ -->
+  <div id="view-error" class="error-view" style="display:none;">
+    <div class="error-icon">🔒</div>
+    <h2 id="error-title">Necesitás un link de acceso</h2>
+    <p id="error-msg">Pedile a tu cuidador el link o el código QR para entrar a tu rutina.</p>
+  </div>
+
+  <!-- ============ HOME ============ -->
+  <div id="view-home" style="display:none;">
+    <div class="home-header">
+      <div class="home-title-block">
+        <div class="home-avatar" id="home-avatar">👤</div>
+        <div>
+          <div class="home-nombre" id="home-nombre">Mi Rutina</div>
+          <div class="date" id="today"></div>
+        </div>
+      </div>
+      <div class="home-stats">
+        <div class="num" id="stats-num">0/0</div>
+        <div class="lbl">Terminadas hoy</div>
+      </div>
+    </div>
+
+    <div class="momento-bar" id="momento-bar"></div>
+    <div class="activities" id="activities"></div>
+
+    <footer>Hecho con 💙 por <strong>EZMEZ</strong> · Aguante Blink</footer>
+  </div>
+
+  <!-- ============ SEQUENCE ============ -->
+  <div id="view-sequence" class="sequence">
+    <div class="seq-header">
+      <button class="btn-back" onclick="goHome()" aria-label="Volver al inicio">← Volver</button>
+      <div class="seq-title" id="seq-title"></div>
+      <div class="seq-header-spacer"></div>
+    </div>
+    <div class="progress" id="progress"></div>
+    <div class="step-card">
+      <div class="step-number" id="step-number"></div>
+      <div class="step-icon" id="step-icon" aria-hidden="true"></div>
+      <div class="step-text" id="step-text"></div>
+      <div class="step-actions">
+        <button class="btn-audio" id="btn-audio" onclick="repetirAudio()" aria-label="Escuchar de nuevo">
+          🔊 Escuchar de nuevo
+        </button>
+        <button class="btn-done" onclick="nextStep()" aria-label="Marcar como listo y continuar">
+          Listo ✓
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ COMPLETE ============ -->
+  <div id="view-complete" class="complete">
+    <div class="complete-icon">🎉</div>
+    <h2>¡Muy bien!</h2>
+    <p id="complete-msg"></p>
+    <button class="btn-primary" onclick="goHome()">Volver al inicio</button>
+  </div>
+
+</div>
+
+<!-- audio element compartido -->
+<audio id="player" preload="auto"></audio>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const SUPABASE_URL = 'https://rcjuwryszdemnbxkflvt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjanV3cnlzemRlbW5ieGtmbHZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzgxNjQsImV4cCI6MjA5ODg1NDE2NH0.L0-IGRUOh3GN-4OpOPeR4QnxhEKDON_WcXNWH3Mvgvk';
+
+const supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false }
+});
+
+const MOMENTOS = [
+  { key: null,       lbl: 'Todo',    icon: '📋' },
+  { key: 'manana',   lbl: 'Mañana',  icon: '🌅' },
+  { key: 'tarde',    lbl: 'Tarde',   icon: '☀️' },
+  { key: 'noche',    lbl: 'Noche',   icon: '🌙' },
+];
+
+// ============================================================
+// ESTADO
+// ============================================================
+const state = {
+  token: null,
+  adulto: null,          // { nombre, avatar }
+  rutinas: [],
+  completadasHoy: new Set(),
+  momentoFiltro: null,   // null = filtro auto por hora
+  rutinaActual: null,
+  pasos: [],
+  pasoIdx: 0,
+  selectedVoice: null,
+  online: navigator.onLine,
+};
+
+// ============================================================
+// TOKEN: URL → localStorage
+// ============================================================
+function extraerToken() {
+  const url = new URL(window.location.href);
+  const t = url.searchParams.get('t');
+  if (t) {
+    localStorage.setItem('mirutina_token', t);
+    // Limpiar la URL para no exponer el token
+    url.searchParams.delete('t');
+    history.replaceState({}, '', url.pathname);
+    return t;
+  }
+  return localStorage.getItem('mirutina_token');
+}
+
+// ============================================================
+// FECHA / MOMENTO
+// ============================================================
+function fechaHoyISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatFecha() {
+  const days = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const months = ['enero','febrero','marzo','abril','mayo','junio',
+                  'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const d = new Date();
+  return `${days[d.getDay()]} ${d.getDate()} de ${months[d.getMonth()]}`;
+}
+
+function momentoAutomatico() {
+  const h = new Date().getHours();
+  if (h >= 6 && h < 12)  return 'manana';
+  if (h >= 12 && h < 18) return 'tarde';
+  return 'noche';
+}
+
+// ============================================================
+// CACHE (localStorage)
+// ============================================================
+function cacheKey(sub) { return `mirutina_cache_${state.token}_${sub}`; }
+function cacheSet(sub, data) {
+  try { localStorage.setItem(cacheKey(sub), JSON.stringify({ ts: Date.now(), data })); }
+  catch (e) { console.warn('Cache write failed', e); }
+}
+function cacheGet(sub, maxAgeMs = 7*24*3600*1000) {
+  try {
+    const raw = localStorage.getItem(cacheKey(sub));
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > maxAgeMs) return null;
+    return data;
+  } catch { return null; }
+}
+
+// ============================================================
+// TTS (fallback si no hay audio grabado)
+// ============================================================
+function pickVoice() {
+  if (!('speechSynthesis' in window)) return;
+  const voices = window.speechSynthesis.getVoices();
+  state.selectedVoice =
+    voices.find(v => v.lang === 'es-AR') ||
+    voices.find(v => v.lang === 'es-MX') ||
+    voices.find(v => v.lang === 'es-ES') ||
+    voices.find(v => v.lang && v.lang.startsWith('es')) ||
+    null;
+}
+if ('speechSynthesis' in window) {
+  pickVoice();
+  window.speechSynthesis.onvoiceschanged = pickVoice;
+}
+function ttsSpeak(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'es-AR';
+  if (state.selectedVoice) u.voice = state.selectedVoice;
+  u.rate = 0.92;
+  u.pitch = 1;
+  u.volume = 1;
+  const btn = document.getElementById('btn-audio');
+  u.onstart = () => btn && btn.classList.add('speaking');
+  u.onend = () => btn && btn.classList.remove('speaking');
+  u.onerror = () => btn && btn.classList.remove('speaking');
+  window.speechSynthesis.speak(u);
+}
+function ttsCancel() {
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+// ============================================================
+// PLAYER (audio grabado o TTS)
+// ============================================================
+function detenerAudioActual() {
+  const p = document.getElementById('player');
+  p.pause();
+  p.currentTime = 0;
+  p.removeAttribute('src');
+  ttsCancel();
+  const btn = document.getElementById('btn-audio');
+  if (btn) btn.classList.remove('speaking');
+}
+
+function reproducirPaso(paso) {
+  detenerAudioActual();
+  const btn = document.getElementById('btn-audio');
+  if (paso.audio_url) {
+    const p = document.getElementById('player');
+    p.src = paso.audio_url;
+    p.onplay = () => btn && btn.classList.add('speaking');
+    p.onended = () => btn && btn.classList.remove('speaking');
+    p.onerror = () => {
+      // Si falla el audio (offline y sin caché), caemos a TTS
+      btn && btn.classList.remove('speaking');
+      ttsSpeak(paso.texto);
+    };
+    p.play().catch(err => {
+      // Autoplay bloqueado (iOS Safari primera vez) → usar TTS
+      console.warn('audio.play() bloqueado, uso TTS', err);
+      ttsSpeak(paso.texto);
+    });
+  } else {
+    ttsSpeak(paso.texto);
+  }
+}
+
+function repetirAudio() {
+  if (state.rutinaActual && state.pasos[state.pasoIdx]) {
+    reproducirPaso(state.pasos[state.pasoIdx]);
+  }
+}
+
+// ============================================================
+// VISTAS
+// ============================================================
+function showView(name) {
+  ['loading', 'error', 'home', 'sequence', 'complete'].forEach(v => {
+    const el = document.getElementById('view-' + v);
+    if (!el) return;
+    if (v === 'sequence' || v === 'complete') {
+      el.classList.toggle('active', v === name);
+    } else {
+      el.style.display = (v === name) ? '' : 'none';
+    }
+  });
+  window.scrollTo({ top: 0 });
+}
+
+function showError(title, msg) {
+  document.getElementById('error-title').textContent = title;
+  document.getElementById('error-msg').textContent = msg;
+  showView('error');
+}
+
+// ============================================================
+// CARGA INICIAL: rutinas + completadas hoy
+// ============================================================
+async function cargarDatos({ useCache = true } = {}) {
+  const hoy = fechaHoyISO();
+
+  // 1) Rutinas (todas, sin filtro; el filtro se hace en el cliente)
+  try {
+    const { data, error } = await supa.rpc('app_obtener_rutinas', {
+      p_token: state.token,
+      p_momento: null
+    });
+    if (error) throw error;
+    state.rutinas = data || [];
+    cacheSet('rutinas', state.rutinas);
+
+    if (state.rutinas.length && !state.adulto) {
+      state.adulto = {
+        nombre: state.rutinas[0].adulto_nombre,
+        avatar: state.rutinas[0].adulto_avatar || '👤'
+      };
+      cacheSet('adulto', state.adulto);
+    }
+  } catch (err) {
+    console.warn('Error cargando rutinas', err);
+    if (useCache) {
+      const cached = cacheGet('rutinas');
+      const cachedAdulto = cacheGet('adulto');
+      if (cached) {
+        state.rutinas = cached;
+        if (cachedAdulto) state.adulto = cachedAdulto;
+        state.online = false;
+        document.getElementById('offline-banner').style.display = '';
+      } else {
+        const msg = String(err.message || '').toLowerCase();
+        if (msg.includes('token')) {
+          showError('Link no válido', 'El link se venció o el cuidador generó uno nuevo. Pedile el link actualizado.');
+        } else {
+          showError('Error de conexión', 'No pude conectarme. Revisá tu conexión a internet.');
+        }
+        return false;
+      }
+    } else {
+      return false;
+    }
+  }
+
+  // 2) Completadas hoy
+  try {
+    const { data, error } = await supa.rpc('app_obtener_completadas_hoy', {
+      p_token: state.token,
+      p_fecha: hoy
+    });
+    if (error) throw error;
+    state.completadasHoy = new Set((data || []).map(d => d.rutina_id || d));
+    cacheSet('completadas_' + hoy, [...state.completadasHoy]);
+  } catch (err) {
+    console.warn('Error cargando completadas', err);
+    const cached = cacheGet('completadas_' + hoy, 24*3600*1000);
+    if (cached) state.completadasHoy = new Set(cached);
+  }
+
+  return true;
+}
+
+// ============================================================
+// HOME
+// ============================================================
+function renderHome() {
+  // Header
+  document.getElementById('home-avatar').textContent = state.adulto?.avatar || '👤';
+  document.getElementById('home-nombre').textContent = state.adulto?.nombre || 'Mi Rutina';
+  document.getElementById('today').textContent = formatFecha();
+
+  // Chips de momento
+  const momentoActivo = state.momentoFiltro ?? momentoAutomatico();
+  const barra = document.getElementById('momento-bar');
+  barra.innerHTML = MOMENTOS.map(m => {
+    const active = (m.key === state.momentoFiltro) || (state.momentoFiltro === null && m.key === null);
+    return `<button class="momento-chip ${active ? 'active' : ''}"
+              onclick="setMomento(${m.key ? "'"+m.key+"'" : 'null'})">
+              ${m.icon} ${m.lbl}
+            </button>`;
+  }).join('');
+
+  // Filtrar rutinas
+  let visibles;
+  if (state.momentoFiltro === null) {
+    // Auto: momento actual + todo_dia
+    const auto = momentoAutomatico();
+    visibles = state.rutinas.filter(r => r.momento === auto || r.momento === 'todo_dia');
+    // Si no hay ninguna del momento auto, mostrar todas
+    if (!visibles.length) visibles = state.rutinas;
+  } else {
+    visibles = state.rutinas.filter(r =>
+      r.momento === state.momentoFiltro || r.momento === 'todo_dia'
+    );
+  }
+
+  // Stats: sobre las visibles
+  const completadasVisibles = visibles.filter(r => state.completadasHoy.has(r.id)).length;
+  document.getElementById('stats-num').textContent = `${completadasVisibles}/${visibles.length}`;
+
+  // Grid
+  const container = document.getElementById('activities');
+  if (!visibles.length) {
+    container.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">📋</div>
+        <p>No hay rutinas para este momento.<br>Probá con otro filtro.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = visibles.map(r => {
+    const isDone = state.completadasHoy.has(r.id);
+    return `
+      <button class="activity-card ${isDone ? 'done' : ''}"
+              onclick="iniciarRutina('${r.id}')"
+              aria-label="${escapeAttr(r.nombre)}${isDone ? ' (ya terminada hoy)' : ''}, ${r.cant_pasos} pasos">
+        ${isDone ? '<div class="done-check" aria-hidden="true">✓</div>' : ''}
+        <div class="activity-icon" aria-hidden="true">${r.icono}</div>
+        <div class="activity-name">${escapeHtml(r.nombre)}</div>
+        <div class="activity-steps">${r.cant_pasos} paso${r.cant_pasos === 1 ? '' : 's'}</div>
+      </button>
+    `;
+  }).join('');
+
+  showView('home');
+}
+
+function setMomento(m) {
+  state.momentoFiltro = m;
+  renderHome();
+}
+
+// ============================================================
+// SEQUENCE
+// ============================================================
+async function iniciarRutina(rutinaId) {
+  const rutina = state.rutinas.find(r => r.id === rutinaId);
+  if (!rutina) return;
+  state.rutinaActual = rutina;
+  state.pasoIdx = 0;
+
+  showView('loading');
+  document.getElementById('view-loading').querySelector('p').textContent = 'Cargando pasos...';
+
+  // Cargar pasos (con cache)
+  let pasos = null;
+  try {
+    const { data, error } = await supa.rpc('app_obtener_pasos', {
+      p_token: state.token,
+      p_rutina_id: rutinaId
+    });
+    if (error) throw error;
+    pasos = data || [];
+    cacheSet('pasos_' + rutinaId, pasos);
+  } catch (err) {
+    console.warn('Error cargando pasos', err);
+    pasos = cacheGet('pasos_' + rutinaId);
+    if (!pasos) {
+      showError('No pude cargar los pasos', 'Volvé a intentarlo con conexión.');
+      return;
+    }
+  }
+
+  if (!pasos.length) {
+    alert('Esta rutina no tiene pasos todavía.');
+    goHome();
+    return;
+  }
+
+  state.pasos = pasos;
+
+  document.getElementById('seq-title').textContent = rutina.nombre;
+  renderPaso();
+  showView('sequence');
+}
+
+function renderPaso() {
+  const paso = state.pasos[state.pasoIdx];
+  document.getElementById('step-number').textContent =
+    `Paso ${state.pasoIdx + 1} de ${state.pasos.length}`;
+  document.getElementById('step-icon').textContent = paso.icono;
+  document.getElementById('step-text').textContent = paso.texto;
+
+  const progress = document.getElementById('progress');
+  progress.innerHTML = '';
+  state.pasos.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'progress-dot' +
+      (i < state.pasoIdx ? ' done' : (i === state.pasoIdx ? ' current' : ''));
+    progress.appendChild(dot);
+  });
+
+  // Reproducir automáticamente después de un pequeño delay
+  setTimeout(() => reproducirPaso(paso), 250);
+}
+
+async function nextStep() {
+  state.pasoIdx++;
+  if (state.pasoIdx >= state.pasos.length) {
+    await terminarRutina();
+  } else {
+    renderPaso();
+  }
+}
+
+async function terminarRutina() {
+  detenerAudioActual();
+  const hoy = fechaHoyISO();
+  const rutinaId = state.rutinaActual.id;
+
+  // Registrar en Supabase
+  try {
+    const { error } = await supa.rpc('app_registrar_completado', {
+      p_token: state.token,
+      p_rutina_id: rutinaId,
+      p_fecha: hoy
+    });
+    if (error) throw error;
+  } catch (err) {
+    console.warn('Error registrando completado, guardo pendiente', err);
+    // Guardar pendiente para reintentar después
+    const pendientes = cacheGet('pendientes') || [];
+    pendientes.push({ rutina_id: rutinaId, fecha: hoy });
+    cacheSet('pendientes', pendientes);
+  }
+
+  state.completadasHoy.add(rutinaId);
+  cacheSet('completadas_' + hoy, [...state.completadasHoy]);
+
+  // Mensaje de refuerzo
+  const total = state.rutinas.length;
+  const hechas = state.completadasHoy.size;
+  let msg = `Terminaste: ${state.rutinaActual.nombre}. ¡Excelente trabajo!`;
+  if (hechas >= total && total > 0) {
+    msg = `¡Terminaste todas las rutinas de hoy! Estás cumpliendo muy bien.`;
+  }
+  document.getElementById('complete-msg').textContent = msg;
+  ttsSpeak('Muy bien. ' + msg);
+  showView('complete');
+}
+
+function goHome() {
+  detenerAudioActual();
+  state.rutinaActual = null;
+  state.pasos = [];
+  state.pasoIdx = 0;
+  renderHome();
+}
+
+// ============================================================
+// REINTENTO DE PENDIENTES
+// ============================================================
+async function reintentarPendientes() {
+  const pendientes = cacheGet('pendientes') || [];
+  if (!pendientes.length) return;
+  const nuevas = [];
+  for (const p of pendientes) {
+    try {
+      const { error } = await supa.rpc('app_registrar_completado', {
+        p_token: state.token,
+        p_rutina_id: p.rutina_id,
+        p_fecha: p.fecha
+      });
+      if (error) throw error;
+    } catch (e) {
+      nuevas.push(p); // sigue pendiente
+    }
+  }
+  cacheSet('pendientes', nuevas);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeAttr(s) {
+  return escapeHtml(s).replace(/"/g, '&quot;');
+}
+
+// ============================================================
+// EVENTOS
+// ============================================================
+window.addEventListener('online', () => {
+  state.online = true;
+  document.getElementById('offline-banner').style.display = 'none';
+  reintentarPendientes();
+});
+window.addEventListener('offline', () => {
+  state.online = false;
+  document.getElementById('offline-banner').style.display = '';
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('view-sequence').classList.contains('active') ||
+        document.getElementById('view-complete').classList.contains('active')) {
+      goHome();
+    }
+  }
+});
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+  state.token = extraerToken();
+  if (!state.token) {
+    showError('Necesitás un link de acceso', 'Pedile a tu cuidador el link o el código QR para entrar a tu rutina.');
+    return;
+  }
+
+  showView('loading');
+  const ok = await cargarDatos();
+  if (!ok) return;
+  await reintentarPendientes();
+  renderHome();
+}
+
+init();
+</script>
+</body>
+</html>
