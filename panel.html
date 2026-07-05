@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#4A90E2">
+<title>Mi Rutina · Panel del cuidador</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #F5F7FA;
+    --surface: #FFFFFF;
+    --primary: #4A90E2;
+    --primary-dark: #357ABD;
+    --success: #52C41A;
+    --danger: #F5222D;
+    --warn: #FA8C16;
+    --text: #2C3E50;
+    --text-soft: #6B7885;
+    --border: #E1E8ED;
+    --shadow: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.14);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  button, input, select, textarea {
+    font-family: inherit;
+    font-size: inherit;
+  }
+  button { cursor: pointer; border: none; }
+  a { color: var(--primary); }
+
+  /* ============ LAYOUT ============ */
+  .container {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 16px 14px 40px;
+  }
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface);
+    padding: 14px 18px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    gap: 12px;
+  }
+  .top-bar-title {
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .top-bar-actions { display: flex; gap: 8px; align-items: center; }
+  .user-chip {
+    font-size: 13px;
+    color: var(--text-soft);
+    padding: 6px 12px;
+    background: var(--bg);
+    border-radius: 20px;
+  }
+
+  /* ============ BOTONES ============ */
+  .btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: transform .1s, background .15s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 2px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: #CF1322; }
+  .btn-success { background: var(--success); color: white; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-soft);
+    padding: 6px 10px;
+  }
+  .btn-ghost:hover { color: var(--primary); background: var(--bg); }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+  .btn-block { display: flex; width: 100%; justify-content: center; }
+
+  /* ============ CARDS / SECTIONS ============ */
+  .card {
+    background: var(--surface);
+    padding: 20px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 20px;
+    margin-bottom: 14px;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+
+  /* ============ FORMS ============ */
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    transition: border-color .15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  .field-inline { display: flex; gap: 10px; }
+  .field-inline > * { flex: 1; }
+  .hint {
+    font-size: 13px;
+    color: var(--text-soft);
+    margin-top: 4px;
+  }
+
+  /* ============ ADULTOS LIST ============ */
+  .adulto-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: var(--bg);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: transform .1s, box-shadow .15s;
+  }
+  .adulto-card:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow);
+  }
+  .adulto-info { display: flex; align-items: center; gap: 14px; }
+  .adulto-avatar { font-size: 42px; line-height: 1; }
+  .adulto-nombre { font-weight: 700; font-size: 17px; }
+  .adulto-meta { font-size: 13px; color: var(--text-soft); }
+
+  /* ============ RUTINAS LIST ============ */
+  .rutina-card {
+    display: flex;
+    align-items: center;
+    padding: 14px;
+    background: var(--bg);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    gap: 12px;
+    border-left: 4px solid var(--primary);
+  }
+  .rutina-card.inactiva {
+    opacity: 0.5;
+    border-left-color: var(--text-soft);
+  }
+  .rutina-card-icon { font-size: 32px; }
+  .rutina-card-body { flex: 1; }
+  .rutina-card-nombre { font-weight: 700; font-size: 15px; }
+  .rutina-card-meta { font-size: 12px; color: var(--text-soft); margin-top: 2px; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 700;
+    margin-right: 4px;
+  }
+  .badge-manana { background: #FFF7E6; color: #D46B08; }
+  .badge-tarde { background: #E6F7FF; color: #096DD9; }
+  .badge-noche { background: #F0F0FF; color: #531DAB; }
+  .badge-todo { background: #F6FFED; color: #389E0D; }
+
+  /* ============ PASOS ============ */
+  .paso {
+    display: grid;
+    grid-template-columns: auto 60px 1fr auto;
+    gap: 10px;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    align-items: center;
+  }
+  .paso-orden {
+    font-weight: 800;
+    color: var(--primary);
+    font-size: 14px;
+    min-width: 30px;
+  }
+  .paso-icono-input {
+    width: 60px;
+    text-align: center;
+    font-size: 22px;
+    padding: 6px !important;
+  }
+  .paso-texto-input {
+    padding: 8px 10px !important;
+  }
+  .paso-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .paso-actions button {
+    padding: 6px 10px;
+    background: var(--surface);
+    border-radius: 8px;
+    color: var(--text-soft);
+    font-size: 13px;
+  }
+  .paso-actions button:hover { color: var(--primary); }
+  .paso-actions .btn-del:hover { color: var(--danger); }
+
+  /* ============ AUDIO WIDGET ============ */
+  .audio-section {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-radius: 8px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .audio-status {
+    font-size: 13px;
+    color: var(--text-soft);
+    flex: 1;
+  }
+  .audio-status.tiene { color: var(--success); }
+  .audio-status.grabando {
+    color: var(--danger);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .audio-status.grabando::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: var(--danger);
+    border-radius: 50%;
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  audio {
+    max-width: 250px;
+    height: 34px;
+  }
+
+  /* ============ TOAST ============ */
+  #toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--text);
+    color: white;
+    padding: 12px 18px;
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg);
+    font-size: 14px;
+    font-weight: 600;
+    max-width: 320px;
+    animation: slideIn .25s ease-out;
+    pointer-events: auto;
+  }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  .toast.warn { background: var(--warn); }
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* ============ MODAL ============ */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 900;
+    padding: 20px;
+  }
+  .modal {
+    background: var(--surface);
+    padding: 24px;
+    border-radius: var(--radius);
+    max-width: 480px;
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal h3 {
+    font-size: 20px;
+    margin-bottom: 16px;
+    color: var(--primary);
+  }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+
+  /* ============ QR / LINK ============ */
+  .link-box {
+    background: var(--bg);
+    padding: 12px;
+    border-radius: 10px;
+    font-family: monospace;
+    font-size: 12px;
+    word-break: break-all;
+    color: var(--text);
+    margin-bottom: 12px;
+    border: 2px dashed var(--border);
+  }
+  .qr-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  .qr-wrap canvas { max-width: 100%; height: auto; }
+
+  /* ============ AUTH VIEW ============ */
+  .auth-wrap {
+    max-width: 420px;
+    margin: 60px auto;
+    padding: 20px;
+  }
+  .auth-wrap h1 {
+    text-align: center;
+    color: var(--primary);
+    font-size: 28px;
+    margin-bottom: 6px;
+  }
+  .auth-wrap .subtitle {
+    text-align: center;
+    color: var(--text-soft);
+    margin-bottom: 24px;
+    font-size: 15px;
+  }
+  .auth-tabs {
+    display: flex;
+    margin-bottom: 20px;
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 4px;
+  }
+  .auth-tabs button {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border-radius: 8px;
+    font-weight: 700;
+    color: var(--text-soft);
+  }
+  .auth-tabs button.active {
+    background: var(--surface);
+    color: var(--primary);
+    box-shadow: var(--shadow);
+  }
+
+  /* ============ EMPTY STATE ============ */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-soft);
+  }
+  .empty-icon { font-size: 60px; margin-bottom: 12px; opacity: 0.5; }
+
+  .hidden { display: none !important; }
+
+  /* ============ MOBILE ============ */
+  @media (max-width: 600px) {
+    .container { padding: 12px 10px 32px; }
+    .top-bar { padding: 12px 14px; }
+    .top-bar-title { font-size: 15px; }
+    .user-chip { display: none; }
+    .card { padding: 16px 14px; }
+    .paso {
+      grid-template-columns: auto 50px 1fr;
+    }
+    .paso-actions {
+      grid-column: 1 / -1;
+      justify-content: flex-end;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+    audio { max-width: 100%; width: 100%; }
+    .field-inline { flex-direction: column; }
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 30px;
+    color: var(--text-soft);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<!-- ================ VISTA AUTH ================ -->
+<div id="view-auth" class="hidden">
+  <div class="auth-wrap">
+    <h1>Mi Rutina</h1>
+    <p class="subtitle">Panel del cuidador</p>
+    <div class="card">
+      <div class="auth-tabs">
+        <button id="tab-login" class="active" onclick="setAuthTab('login')">Entrar</button>
+        <button id="tab-signup" onclick="setAuthTab('signup')">Crear cuenta</button>
+      </div>
+      <div id="signup-nombre-field" class="field hidden">
+        <label>Tu nombre</label>
+        <input id="signup-nombre" type="text" placeholder="Ej: María">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input id="auth-email" type="email" autocomplete="email" placeholder="tuemail@ejemplo.com">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input id="auth-password" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres">
+      </div>
+      <button id="auth-submit" class="btn btn-primary btn-block" onclick="submitAuth()">Entrar</button>
+      <p class="hint" style="margin-top: 12px; text-align: center;">
+        <span id="auth-note"></span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ================ VISTA HOME (LISTA ADULTOS) ================ -->
+<div id="view-home" class="hidden">
+  <div class="container">
+    <div class="top-bar">
+      <div class="top-bar-title">💙 Mi Rutina</div>
+      <div class="top-bar-actions">
+        <span class="user-chip" id="user-chip"></span>
+        <button class="btn-ghost" onclick="logout()">Salir</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Mis adultos a cargo</h2>
+      <div id="adultos-list"></div>
+      <button class="btn btn-primary btn-block" onclick="openModalNuevoAdulto()" style="margin-top: 12px;">
+        + Agregar adulto
+      </button>
+    </div>
+
+    <footer>Hecho con 💙 por <strong>EZMEZ</strong> · Aguante Blink</footer>
+  </div>
+</div>
+
+<!-- ================ VISTA ADULTO (DETALLE) ================ -->
+<div id="view-adulto" class="hidden">
+  <div class="container">
+    <div class="top-bar">
+      <button class="btn-ghost" onclick="showHome()">← Volver</button>
+      <div class="top-bar-title" id="adulto-titulo"></div>
+      <div style="width: 60px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>🔗 Acceso a la app</h2>
+      <p class="hint" style="margin-bottom: 12px;">
+        Este es el link único de esta persona. Guardalo en su celu/tablet como acceso directo, o escanealo con la cámara.
+      </p>
+      <div class="link-box" id="link-adulto"></div>
+      <div class="qr-wrap" id="qr-wrap"></div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="copiarLink()">📋 Copiar link</button>
+        <button class="btn btn-secondary btn-sm" onclick="abrirApp()">🚀 Abrir app</button>
+        <button class="btn btn-secondary btn-sm" onclick="regenerarToken()">🔄 Nuevo link</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📋 Rutinas</h2>
+      <div id="rutinas-list"></div>
+      <button class="btn btn-primary btn-block" onclick="openModalNuevaRutina()" style="margin-top: 12px;">
+        + Nueva rutina
+      </button>
+    </div>
+
+    <div class="card">
+      <h2>⚠️ Zona de peligro</h2>
+      <p class="hint" style="margin-bottom: 12px;">Eliminar borra al adulto, todas sus rutinas, pasos, audios e historial. No hay vuelta atrás.</p>
+      <button class="btn btn-danger btn-sm" onclick="eliminarAdulto()">Eliminar adulto</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================ VISTA RUTINA (EDITOR) ================ -->
+<div id="view-rutina" class="hidden">
+  <div class="container">
+    <div class="top-bar">
+      <button class="btn-ghost" onclick="showAdulto(state.adultoId)">← Volver</button>
+      <div class="top-bar-title" id="rutina-titulo"></div>
+      <div style="width: 60px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>Datos de la rutina</h2>
+      <div class="field-inline">
+        <div class="field">
+          <label>Icono</label>
+          <input id="rutina-icono" type="text" maxlength="4" style="text-align: center; font-size: 24px;">
+        </div>
+        <div class="field" style="flex: 3;">
+          <label>Nombre</label>
+          <input id="rutina-nombre" type="text">
+        </div>
+      </div>
+      <div class="field-inline">
+        <div class="field">
+          <label>Momento del día</label>
+          <select id="rutina-momento">
+            <option value="manana">🌅 Mañana</option>
+            <option value="tarde">☀️ Tarde</option>
+            <option value="noche">🌙 Noche</option>
+            <option value="todo_dia">🕐 Todo el día</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Estado</label>
+          <select id="rutina-activa">
+            <option value="true">✅ Activa (se muestra)</option>
+            <option value="false">🚫 Oculta</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="guardarRutina()">💾 Guardar cambios</button>
+    </div>
+
+    <div class="card">
+      <h2>👣 Pasos</h2>
+      <p class="hint" style="margin-bottom: 12px;">
+        Cada paso: un ícono (emoji), texto corto en imperativo, y opcionalmente tu voz grabada. Si no grabás audio, la app usa la voz del sistema.
+      </p>
+      <div id="pasos-list"></div>
+      <button class="btn btn-primary btn-block" onclick="agregarPaso()" style="margin-top: 12px;">
+        + Agregar paso
+      </button>
+    </div>
+
+    <div class="card">
+      <h2>⚠️ Eliminar rutina</h2>
+      <button class="btn btn-danger btn-sm" onclick="eliminarRutina()">Eliminar esta rutina</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================ CONTENEDOR DE MODALES ================ -->
+<div id="modal-root"></div>
+
+<script>
+// ============================================================
+// CONFIGURACIÓN
+// ============================================================
+const SUPABASE_URL = 'https://rcjuwryszdemnbxkflvt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjanV3cnlzemRlbW5ieGtmbHZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzgxNjQsImV4cCI6MjA5ODg1NDE2NH0.L0-IGRUOh3GN-4OpOPeR4QnxhEKDON_WcXNWH3Mvgvk';
+
+// URL de la app del adulto. Por default, misma ruta con app.html
+function urlAppAdulto(token) {
+  const url = new URL(window.location.href);
+  url.pathname = url.pathname.replace(/panel\.html?$/, 'app.html');
+  if (!url.pathname.endsWith('app.html')) {
+    url.pathname = url.pathname.replace(/\/[^/]*$/, '/app.html');
+  }
+  url.search = '?t=' + encodeURIComponent(token);
+  url.hash = '';
+  return url.toString();
+}
+
+const supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+// ============================================================
+// ESTADO GLOBAL
+// ============================================================
+const state = {
+  user: null,
+  perfil: null,
+  authMode: 'login',
+  adultoId: null,
+  adultoData: null,
+  rutinaId: null,
+  rutinaData: null,
+  pasos: [],
+  audioRecorder: null,
+  audioChunks: [],
+  audioTargetPasoId: null,
+};
+
+// ============================================================
+// UTILS: toast, modal, format
+// ============================================================
+function toast(msg, type = 'default', ms = 3000) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => {
+    el.style.transition = 'opacity .3s, transform .3s';
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(20px)';
+    setTimeout(() => el.remove(), 300);
+  }, ms);
+}
+
+function showModal(html, onMount) {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `<div class="modal-backdrop" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`;
+  if (onMount) onMount();
+}
+function closeModal() {
+  document.getElementById('modal-root').innerHTML = '';
+}
+
+function showView(name) {
+  ['auth', 'home', 'adulto', 'rutina'].forEach(v => {
+    document.getElementById('view-' + v).classList.toggle('hidden', v !== name);
+  });
+  window.scrollTo({ top: 0 });
+}
+
+function confirmar(mensaje, onConfirm) {
+  showModal(`
+    <h3>Confirmar</h3>
+    <p style="margin-bottom: 16px;">${mensaje}</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-danger" id="confirmar-si">Sí, hacerlo</button>
+    </div>
+  `, () => {
+    document.getElementById('confirmar-si').onclick = () => {
+      closeModal();
+      onConfirm();
+    };
+  });
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+function setAuthTab(mode) {
+  state.authMode = mode;
+  document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+  document.getElementById('tab-signup').classList.toggle('active', mode === 'signup');
+  document.getElementById('signup-nombre-field').classList.toggle('hidden', mode !== 'signup');
+  document.getElementById('auth-submit').textContent = mode === 'login' ? 'Entrar' : 'Crear cuenta';
+  document.getElementById('auth-note').textContent = mode === 'signup'
+    ? 'Al crear la cuenta, revisá tu email si Supabase pide confirmación.'
+    : '';
+}
+
+async function submitAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  if (!email || !password) return toast('Completá email y contraseña', 'warn');
+
+  const btn = document.getElementById('auth-submit');
+  btn.disabled = true;
+  btn.textContent = 'Cargando...';
+
+  try {
+    if (state.authMode === 'login') {
+      const { error } = await supa.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast('¡Bienvenido!', 'success');
+    } else {
+      const nombre = document.getElementById('signup-nombre').value.trim();
+      if (!nombre) throw new Error('Ingresá tu nombre');
+      const { data, error } = await supa.auth.signUp({ email, password });
+      if (error) throw error;
+      // Guardar nombre para crear perfil después
+      sessionStorage.setItem('pending_nombre', nombre);
+      if (data.session) {
+        toast('Cuenta creada. ¡Adentro!', 'success');
+      } else {
+        toast('Revisá tu email para confirmar', 'success', 5000);
+      }
+    }
+    await checkSession();
+  } catch (err) {
+    toast(err.message || 'Error al autenticar', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = state.authMode === 'login' ? 'Entrar' : 'Crear cuenta';
+  }
+}
+
+async function logout() {
+  await supa.auth.signOut();
+  state.user = null;
+  state.perfil = null;
+  showView('auth');
+  toast('Sesión cerrada', 'default');
+}
+
+async function checkSession() {
+  const { data: { session } } = await supa.auth.getSession();
+  if (!session) {
+    showView('auth');
+    return;
+  }
+  state.user = session.user;
+  await ensurePerfil();
+  await showHome();
+}
+
+async function ensurePerfil() {
+  const { data, error } = await supa
+    .from('perfiles')
+    .select('*')
+    .eq('id', state.user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    toast('Error cargando perfil', 'error');
+    return;
+  }
+
+  if (!data) {
+    const nombre = sessionStorage.getItem('pending_nombre')
+      || state.user.email.split('@')[0];
+    sessionStorage.removeItem('pending_nombre');
+    const { data: nuevo, error: e2 } = await supa
+      .from('perfiles')
+      .insert({ id: state.user.id, nombre })
+      .select()
+      .single();
+    if (e2) {
+      toast('Error creando perfil: ' + e2.message, 'error');
+      return;
+    }
+    state.perfil = nuevo;
+  } else {
+    state.perfil = data;
+  }
+
+  document.getElementById('user-chip').textContent = state.perfil.nombre;
+}
+
+// ============================================================
+// VISTA: HOME (lista de adultos)
+// ============================================================
+async function showHome() {
+  showView('home');
+  const container = document.getElementById('adultos-list');
+  container.innerHTML = '<p class="hint">Cargando...</p>';
+
+  const { data, error } = await supa
+    .from('adultos')
+    .select('*, cuidador_adulto!inner(vinculo)')
+    .order('creado_en');
+
+  if (error) {
+    container.innerHTML = '<p class="hint">Error al cargar</p>';
+    toast(error.message, 'error');
+    return;
+  }
+
+  if (!data.length) {
+    container.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">👥</div>
+        <p>Todavía no tenés ningún adulto a cargo.</p>
+        <p class="hint">Tocá el botón de abajo para agregar el primero.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = data.map(a => `
+    <div class="adulto-card" onclick="showAdulto('${a.id}')">
+      <div class="adulto-info">
+        <div class="adulto-avatar">${a.avatar_emoji || '👤'}</div>
+        <div>
+          <div class="adulto-nombre">${escapeHtml(a.nombre)}</div>
+          <div class="adulto-meta">${a.cuidador_adulto[0]?.vinculo || 'familiar'}</div>
+        </div>
+      </div>
+      <div style="color: var(--text-soft);">›</div>
+    </div>
+  `).join('');
+}
+
+function openModalNuevoAdulto() {
+  showModal(`
+    <h3>Agregar adulto</h3>
+    <div class="field">
+      <label>Nombre</label>
+      <input id="na-nombre" type="text" placeholder="Ej: Juan">
+    </div>
+    <div class="field">
+      <label>Avatar (emoji)</label>
+      <input id="na-avatar" type="text" maxlength="4" value="👤" style="text-align: center; font-size: 24px;">
+    </div>
+    <div class="field">
+      <label>Vínculo</label>
+      <select id="na-vinculo">
+        <option value="familiar">Familiar</option>
+        <option value="terapeuta">Terapeuta</option>
+        <option value="acompanante">Acompañante</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>
+        <input type="checkbox" id="na-sembrar" checked>
+        Crear rutinas predeterminadas (dientes, manos, ducha, mate, vestirse)
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="crearAdultoSubmit()">Crear</button>
+    </div>
+  `);
+}
+
+async function crearAdultoSubmit() {
+  const nombre = document.getElementById('na-nombre').value.trim();
+  const avatar = document.getElementById('na-avatar').value.trim() || '👤';
+  const vinculo = document.getElementById('na-vinculo').value;
+  const sembrar = document.getElementById('na-sembrar').checked;
+  if (!nombre) return toast('Poné un nombre', 'warn');
+
+  const { data, error } = await supa.rpc('crear_adulto', {
+    p_nombre: nombre,
+    p_avatar: avatar,
+    p_vinculo: vinculo,
+    p_sembrar_default: sembrar
+  });
+
+  if (error) return toast(error.message, 'error');
+
+  const nuevo = Array.isArray(data) ? data[0] : data;
+  toast('Adulto creado ✓', 'success');
+  closeModal();
+  await showAdulto(nuevo.id);
+}
+
+// ============================================================
+// VISTA: ADULTO (detalle + rutinas)
+// ============================================================
+async function showAdulto(id) {
+  state.adultoId = id;
+  showView('adulto');
+
+  const { data: adulto, error } = await supa
+    .from('adultos')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    toast('Error cargando adulto', 'error');
+    return;
+  }
+  state.adultoData = adulto;
+  document.getElementById('adulto-titulo').innerHTML =
+    `${adulto.avatar_emoji} ${escapeHtml(adulto.nombre)}`;
+
+  // Link y QR
+  const link = urlAppAdulto(adulto.token_acceso);
+  document.getElementById('link-adulto').textContent = link;
+  const qrWrap = document.getElementById('qr-wrap');
+  qrWrap.innerHTML = '';
+  const qrCanvas = document.createElement('canvas');
+  qrWrap.appendChild(qrCanvas);
+  QRCode.toCanvas(qrCanvas, link, { width: 220, margin: 2 }, err => {
+    if (err) console.error(err);
+  });
+
+  // Rutinas
+  await cargarRutinasDeAdulto();
+}
+
+async function cargarRutinasDeAdulto() {
+  const container = document.getElementById('rutinas-list');
+  container.innerHTML = '<p class="hint">Cargando...</p>';
+
+  const { data, error } = await supa
+    .from('rutinas')
+    .select('*, pasos(id)')
+    .eq('adulto_id', state.adultoId)
+    .order('orden');
+
+  if (error) {
+    container.innerHTML = '<p class="hint">Error</p>';
+    return toast(error.message, 'error');
+  }
+
+  if (!data.length) {
+    container.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">📋</div>
+        <p>No hay rutinas todavía.</p>
+      </div>`;
+    return;
+  }
+
+  const momentoLabel = { manana: '🌅 Mañana', tarde: '☀️ Tarde', noche: '🌙 Noche', todo_dia: '🕐 Todo el día' };
+  const momentoBadge = { manana: 'manana', tarde: 'tarde', noche: 'noche', todo_dia: 'todo' };
+
+  container.innerHTML = data.map(r => `
+    <div class="rutina-card ${r.activa ? '' : 'inactiva'}" onclick="showRutina('${r.id}')">
+      <div class="rutina-card-icon">${r.icono}</div>
+      <div class="rutina-card-body">
+        <div class="rutina-card-nombre">${escapeHtml(r.nombre)}</div>
+        <div class="rutina-card-meta">
+          <span class="badge badge-${momentoBadge[r.momento]}">${momentoLabel[r.momento]}</span>
+          <span class="badge">${r.pasos.length} pasos</span>
+          ${r.activa ? '' : '<span class="badge">Oculta</span>'}
+        </div>
+      </div>
+      <div style="color: var(--text-soft);">›</div>
+    </div>
+  `).join('');
+}
+
+function openModalNuevaRutina() {
+  showModal(`
+    <h3>Nueva rutina</h3>
+    <div class="field-inline">
+      <div class="field">
+        <label>Icono</label>
+        <input id="nr-icono" type="text" maxlength="4" value="✨" style="text-align: center; font-size: 24px;">
+      </div>
+      <div class="field" style="flex: 3;">
+        <label>Nombre</label>
+        <input id="nr-nombre" type="text" placeholder="Ej: Cepillarse el pelo">
+      </div>
+    </div>
+    <div class="field">
+      <label>Momento del día</label>
+      <select id="nr-momento">
+        <option value="manana">🌅 Mañana</option>
+        <option value="tarde">☀️ Tarde</option>
+        <option value="noche">🌙 Noche</option>
+        <option value="todo_dia" selected>🕐 Todo el día</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="crearRutinaSubmit()">Crear</button>
+    </div>
+  `);
+}
+
+async function crearRutinaSubmit() {
+  const nombre = document.getElementById('nr-nombre').value.trim();
+  const icono = document.getElementById('nr-icono').value.trim() || '✨';
+  const momento = document.getElementById('nr-momento').value;
+  if (!nombre) return toast('Falta el nombre', 'warn');
+
+  const { data, error } = await supa
+    .from('rutinas')
+    .insert({
+      adulto_id: state.adultoId,
+      nombre, icono, momento,
+      creado_por: state.user.id
+    })
+    .select()
+    .single();
+
+  if (error) return toast(error.message, 'error');
+  toast('Rutina creada ✓', 'success');
+  closeModal();
+  await showRutina(data.id);
+}
+
+async function copiarLink() {
+  const link = document.getElementById('link-adulto').textContent;
+  try {
+    await navigator.clipboard.writeText(link);
+    toast('Link copiado ✓', 'success');
+  } catch {
+    toast('No se pudo copiar', 'error');
+  }
+}
+
+function abrirApp() {
+  window.open(document.getElementById('link-adulto').textContent, '_blank');
+}
+
+async function regenerarToken() {
+  confirmar(
+    '¿Generar un link nuevo? El anterior dejará de funcionar. Vas a tener que compartir el nuevo con la persona.',
+    async () => {
+      const { data, error } = await supa.rpc('regenerar_token', {
+        p_adulto_id: state.adultoId
+      });
+      if (error) return toast(error.message, 'error');
+      toast('Nuevo link generado ✓', 'success');
+      await showAdulto(state.adultoId);
+    }
+  );
+}
+
+async function eliminarAdulto() {
+  confirmar(
+    `¿Eliminar a "${state.adultoData.nombre}" y TODO su contenido? No se puede deshacer.`,
+    async () => {
+      const { error } = await supa.from('adultos').delete().eq('id', state.adultoId);
+      if (error) return toast(error.message, 'error');
+      toast('Adulto eliminado', 'success');
+      await showHome();
+    }
+  );
+}
+
+// ============================================================
+// VISTA: RUTINA (editor)
+// ============================================================
+async function showRutina(id) {
+  state.rutinaId = id;
+  showView('rutina');
+
+  const { data: rutina, error } = await supa
+    .from('rutinas')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) return toast('Error cargando rutina', 'error');
+  state.rutinaData = rutina;
+
+  document.getElementById('rutina-titulo').innerHTML = `${rutina.icono} ${escapeHtml(rutina.nombre)}`;
+  document.getElementById('rutina-icono').value = rutina.icono;
+  document.getElementById('rutina-nombre').value = rutina.nombre;
+  document.getElementById('rutina-momento').value = rutina.momento;
+  document.getElementById('rutina-activa').value = rutina.activa ? 'true' : 'false';
+
+  await cargarPasos();
+}
+
+async function guardarRutina() {
+  const nombre = document.getElementById('rutina-nombre').value.trim();
+  const icono = document.getElementById('rutina-icono').value.trim();
+  const momento = document.getElementById('rutina-momento').value;
+  const activa = document.getElementById('rutina-activa').value === 'true';
+  if (!nombre) return toast('Falta el nombre', 'warn');
+
+  const { error } = await supa
+    .from('rutinas')
+    .update({ nombre, icono, momento, activa })
+    .eq('id', state.rutinaId);
+
+  if (error) return toast(error.message, 'error');
+  toast('Guardado ✓', 'success');
+  state.rutinaData = { ...state.rutinaData, nombre, icono, momento, activa };
+  document.getElementById('rutina-titulo').innerHTML = `${icono} ${escapeHtml(nombre)}`;
+}
+
+async function eliminarRutina() {
+  confirmar('¿Eliminar esta rutina y todos sus pasos?', async () => {
+    const { error } = await supa.from('rutinas').delete().eq('id', state.rutinaId);
+    if (error) return toast(error.message, 'error');
+    toast('Rutina eliminada', 'success');
+    await showAdulto(state.adultoId);
+  });
+}
+
+async function cargarPasos() {
+  const container = document.getElementById('pasos-list');
+  container.innerHTML = '<p class="hint">Cargando...</p>';
+
+  const { data, error } = await supa
+    .from('pasos')
+    .select('*')
+    .eq('rutina_id', state.rutinaId)
+    .order('orden');
+
+  if (error) return toast(error.message, 'error');
+  state.pasos = data;
+  renderPasos();
+}
+
+function renderPasos() {
+  const container = document.getElementById('pasos-list');
+  if (!state.pasos.length) {
+    container.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">👣</div>
+        <p>Todavía no hay pasos.</p>
+      </div>`;
+    return;
+  }
+  container.innerHTML = state.pasos.map((p, i) => `
+    <div class="paso" data-id="${p.id}">
+      <div class="paso-orden">${i + 1}</div>
+      <input class="paso-icono-input" type="text" maxlength="4" value="${escapeAttr(p.icono)}"
+             onchange="editarPaso('${p.id}', 'icono', this.value)">
+      <input class="paso-texto-input" type="text" value="${escapeAttr(p.texto)}"
+             placeholder="Descripción del paso"
+             onchange="editarPaso('${p.id}', 'texto', this.value)">
+      <div class="paso-actions">
+        <button onclick="moverPaso('${p.id}', -1)" title="Subir" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button onclick="moverPaso('${p.id}', 1)" title="Bajar" ${i === state.pasos.length - 1 ? 'disabled' : ''}>↓</button>
+        <button class="btn-del" onclick="borrarPaso('${p.id}')" title="Borrar">🗑️</button>
+      </div>
+      <div class="audio-section">
+        ${p.audio_url ? `
+          <span class="audio-status tiene">🔊 Con audio grabado</span>
+          <audio controls src="${p.audio_url}"></audio>
+          <button class="btn btn-secondary btn-sm" onclick="borrarAudio('${p.id}')">Quitar</button>
+        ` : `
+          <span class="audio-status" id="audio-status-${p.id}">🎙️ Sin audio (usa voz del sistema)</span>
+          <button class="btn btn-secondary btn-sm" id="btn-rec-${p.id}" onclick="toggleGrabar('${p.id}')">Grabar voz</button>
+        `}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function agregarPaso() {
+  const nuevoOrden = state.pasos.length + 1;
+  const { data, error } = await supa
+    .from('pasos')
+    .insert({
+      rutina_id: state.rutinaId,
+      orden: nuevoOrden,
+      icono: '➡️',
+      texto: 'Nuevo paso'
+    })
+    .select()
+    .single();
+
+  if (error) return toast(error.message, 'error');
+  state.pasos.push(data);
+  renderPasos();
+  toast('Paso agregado', 'success');
+}
+
+async function editarPaso(id, campo, valor) {
+  const { error } = await supa
+    .from('pasos')
+    .update({ [campo]: valor })
+    .eq('id', id);
+  if (error) return toast(error.message, 'error');
+  const p = state.pasos.find(x => x.id === id);
+  if (p) p[campo] = valor;
+}
+
+async function borrarPaso(id) {
+  confirmar('¿Borrar este paso?', async () => {
+    const { error } = await supa.from('pasos').delete().eq('id', id);
+    if (error) return toast(error.message, 'error');
+    state.pasos = state.pasos.filter(p => p.id !== id);
+    // Renumerar
+    for (let i = 0; i < state.pasos.length; i++) {
+      if (state.pasos[i].orden !== i + 1) {
+        state.pasos[i].orden = i + 1;
+        await supa.from('pasos').update({ orden: i + 1 }).eq('id', state.pasos[i].id);
+      }
+    }
+    renderPasos();
+    toast('Paso borrado', 'success');
+  });
+}
+
+async function moverPaso(id, delta) {
+  const idx = state.pasos.findIndex(p => p.id === id);
+  const nuevoIdx = idx + delta;
+  if (nuevoIdx < 0 || nuevoIdx >= state.pasos.length) return;
+
+  const a = state.pasos[idx];
+  const b = state.pasos[nuevoIdx];
+  [state.pasos[idx], state.pasos[nuevoIdx]] = [b, a];
+
+  // Actualizar orden en DB
+  const ordenA = idx + 1;
+  const ordenB = nuevoIdx + 1;
+  await supa.from('pasos').update({ orden: ordenB }).eq('id', a.id);
+  await supa.from('pasos').update({ orden: ordenA }).eq('id', b.id);
+  a.orden = ordenB;
+  b.orden = ordenA;
+
+  renderPasos();
+}
+
+// ============================================================
+// GRABADOR DE AUDIO
+// ============================================================
+function getBestAudioMime() {
+  const tipos = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/mpeg'];
+  for (const t of tipos) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return '';
+}
+
+async function toggleGrabar(pasoId) {
+  // Si ya estamos grabando este paso, parar
+  if (state.audioRecorder && state.audioTargetPasoId === pasoId) {
+    state.audioRecorder.stop();
+    return;
+  }
+  // Si estamos grabando otro paso, avisar
+  if (state.audioRecorder) {
+    toast('Estás grabando otro paso. Terminá ese primero.', 'warn');
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mime = getBestAudioMime();
+    if (!mime) {
+      toast('Tu navegador no soporta grabación de audio', 'error');
+      stream.getTracks().forEach(t => t.stop());
+      return;
+    }
+
+    state.audioRecorder = new MediaRecorder(stream, { mimeType: mime });
+    state.audioChunks = [];
+    state.audioTargetPasoId = pasoId;
+
+    state.audioRecorder.ondataavailable = e => {
+      if (e.data.size > 0) state.audioChunks.push(e.data);
+    };
+
+    state.audioRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(state.audioChunks, { type: mime });
+      const targetId = state.audioTargetPasoId;
+      state.audioRecorder = null;
+      state.audioTargetPasoId = null;
+      state.audioChunks = [];
+
+      await subirAudio(targetId, blob, mime);
+    };
+
+    state.audioRecorder.start();
+
+    // UI
+    const status = document.getElementById('audio-status-' + pasoId);
+    const btn = document.getElementById('btn-rec-' + pasoId);
+    if (status) {
+      status.textContent = 'Grabando... tocá "Parar" cuando termines';
+      status.className = 'audio-status grabando';
+    }
+    if (btn) {
+      btn.textContent = '⏹ Parar';
+      btn.className = 'btn btn-danger btn-sm';
+    }
+  } catch (err) {
+    toast('No pude acceder al micrófono: ' + err.message, 'error');
+  }
+}
+
+async function subirAudio(pasoId, blob, mime) {
+  toast('Subiendo audio...', 'default');
+
+  // Extensión según mime
+  const ext = mime.includes('webm') ? 'webm'
+            : mime.includes('mp4') ? 'm4a'
+            : mime.includes('mpeg') ? 'mp3'
+            : 'audio';
+
+  const path = `${state.adultoId}/${state.rutinaId}/${pasoId}.${ext}`;
+
+  const { error: upErr } = await supa.storage
+    .from('audios-rutinas')
+    .upload(path, blob, {
+      contentType: mime,
+      upsert: true,
+      cacheControl: '3600'
+    });
+
+  if (upErr) return toast('Error al subir: ' + upErr.message, 'error');
+
+  const { data: urlData } = supa.storage
+    .from('audios-rutinas')
+    .getPublicUrl(path);
+  // Cache-buster para forzar recarga si se regrabó
+  const publicUrl = urlData.publicUrl + '?v=' + Date.now();
+
+  const { error: updErr } = await supa
+    .from('pasos')
+    .update({ audio_url: publicUrl })
+    .eq('id', pasoId);
+
+  if (updErr) return toast('Error al guardar URL: ' + updErr.message, 'error');
+
+  const p = state.pasos.find(x => x.id === pasoId);
+  if (p) p.audio_url = publicUrl;
+  renderPasos();
+  toast('Audio guardado ✓', 'success');
+}
+
+async function borrarAudio(pasoId) {
+  confirmar('¿Quitar el audio grabado de este paso?', async () => {
+    const p = state.pasos.find(x => x.id === pasoId);
+    if (!p || !p.audio_url) return;
+
+    // Extraer path del URL (formato: .../audios-rutinas/{path})
+    const url = p.audio_url.split('?')[0];
+    const match = url.match(/\/audios-rutinas\/(.+)$/);
+    if (match) {
+      await supa.storage.from('audios-rutinas').remove([match[1]]);
+    }
+
+    const { error } = await supa
+      .from('pasos')
+      .update({ audio_url: null })
+      .eq('id', pasoId);
+
+    if (error) return toast(error.message, 'error');
+    p.audio_url = null;
+    renderPasos();
+    toast('Audio quitado', 'success');
+  });
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeAttr(s) {
+  return escapeHtml(s).replace(/"/g, '&quot;');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+supa.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT') showView('auth');
+});
+
+checkSession();
+</script>
+</body>
+</html>
