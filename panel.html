@@ -190,9 +190,40 @@
     border-left: 4px solid var(--primary);
   }
   .rutina-card.inactiva {
-    opacity: 0.5;
+    opacity: 0.55;
     border-left-color: var(--text-soft);
   }
+  .rutina-clickable {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: transform .1s;
+    min-width: 0;
+  }
+  .rutina-clickable:hover { transform: translateX(2px); }
+  .rutina-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .rutina-actions button {
+    background: var(--surface);
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--text-soft);
+    font-size: 16px;
+    line-height: 1;
+    transition: color .15s, background .15s;
+  }
+  .rutina-actions button:hover {
+    color: var(--primary);
+    background: white;
+  }
+  .rutina-actions .btn-del:hover { color: var(--danger); }
   .rutina-card-icon { font-size: 32px; }
   .rutina-card-body { flex: 1; }
   .rutina-card-nombre { font-weight: 700; font-size: 15px; }
@@ -650,6 +681,7 @@ const state = {
   authMode: 'login',
   adultoId: null,
   adultoData: null,
+  rutinasAdulto: null,
   rutinaId: null,
   rutinaData: null,
   pasos: [],
@@ -970,18 +1002,27 @@ async function cargarRutinasDeAdulto() {
   const momentoLabel = { manana: '🌅 Mañana', tarde: '☀️ Tarde', noche: '🌙 Noche', todo_dia: '🕐 Todo el día' };
   const momentoBadge = { manana: 'manana', tarde: 'tarde', noche: 'noche', todo_dia: 'todo' };
 
+  state.rutinasAdulto = data;
   container.innerHTML = data.map(r => `
-    <div class="rutina-card ${r.activa ? '' : 'inactiva'}" onclick="showRutina('${r.id}')">
-      <div class="rutina-card-icon">${r.icono}</div>
-      <div class="rutina-card-body">
-        <div class="rutina-card-nombre">${escapeHtml(r.nombre)}</div>
-        <div class="rutina-card-meta">
-          <span class="badge badge-${momentoBadge[r.momento]}">${momentoLabel[r.momento]}</span>
-          <span class="badge">${r.pasos.length} pasos</span>
-          ${r.activa ? '' : '<span class="badge">Oculta</span>'}
+    <div class="rutina-card ${r.activa ? '' : 'inactiva'}">
+      <div class="rutina-clickable" onclick="showRutina('${r.id}')" title="Editar rutina">
+        <div class="rutina-card-icon">${r.icono}</div>
+        <div class="rutina-card-body">
+          <div class="rutina-card-nombre">${escapeHtml(r.nombre)}</div>
+          <div class="rutina-card-meta">
+            <span class="badge badge-${momentoBadge[r.momento]}">${momentoLabel[r.momento]}</span>
+            <span class="badge">${r.pasos.length} pasos</span>
+            ${r.activa ? '' : '<span class="badge">Oculta</span>'}
+          </div>
         </div>
       </div>
-      <div style="color: var(--text-soft);">›</div>
+      <div class="rutina-actions">
+        <button onclick="toggleActivaRutina('${r.id}', ${r.activa})" title="${r.activa ? 'Ocultar en la app' : 'Mostrar en la app'}">
+          ${r.activa ? '👁️' : '🚫'}
+        </button>
+        <button onclick="duplicarRutina('${r.id}')" title="Duplicar rutina">📋</button>
+        <button class="btn-del" onclick="borrarRutinaLista('${r.id}')" title="Borrar rutina">🗑️</button>
+      </div>
     </div>
   `).join('');
 }
@@ -1035,6 +1076,71 @@ async function crearRutinaSubmit() {
   toast('Rutina creada ✓', 'success');
   closeModal();
   await showRutina(data.id);
+}
+
+async function toggleActivaRutina(id, activaActual) {
+  const nuevoValor = !activaActual;
+  const { error } = await supa
+    .from('rutinas')
+    .update({ activa: nuevoValor })
+    .eq('id', id);
+  if (error) return toast(error.message, 'error');
+  toast(nuevoValor ? 'Rutina activada ✓' : 'Rutina ocultada', 'success');
+  await cargarRutinasDeAdulto();
+}
+
+async function duplicarRutina(id) {
+  // Cargar la rutina original con sus pasos
+  const { data: rutina, error: e1 } = await supa
+    .from('rutinas')
+    .select('*, pasos(*)')
+    .eq('id', id)
+    .single();
+  if (e1) return toast(e1.message, 'error');
+
+  // Crear la copia (inactiva por defecto para que el cuidador la revise antes)
+  const { data: nuevaRutina, error: e2 } = await supa
+    .from('rutinas')
+    .insert({
+      adulto_id: rutina.adulto_id,
+      nombre: rutina.nombre + ' (copia)',
+      icono: rutina.icono,
+      momento: rutina.momento,
+      orden: (rutina.orden || 0) + 1,
+      activa: false,
+      creado_por: state.user.id
+    })
+    .select()
+    .single();
+  if (e2) return toast(e2.message, 'error');
+
+  // Copiar los pasos (sin audio_url; los archivos apuntan a la rutina original)
+  if (rutina.pasos && rutina.pasos.length) {
+    const pasosNuevos = rutina.pasos
+      .sort((a, b) => a.orden - b.orden)
+      .map(p => ({
+        rutina_id: nuevaRutina.id,
+        orden: p.orden,
+        icono: p.icono,
+        texto: p.texto
+      }));
+    const { error: e3 } = await supa.from('pasos').insert(pasosNuevos);
+    if (e3) return toast(e3.message, 'error');
+  }
+
+  toast('Rutina duplicada. Revisala y activala cuando quieras.', 'success', 4000);
+  await cargarRutinasDeAdulto();
+}
+
+async function borrarRutinaLista(id) {
+  const rutina = state.rutinasAdulto?.find(r => r.id === id);
+  const nombre = rutina?.nombre || 'esta rutina';
+  confirmar(`¿Borrar la rutina "${escapeHtml(nombre)}" y todos sus pasos? No se puede deshacer.`, async () => {
+    const { error } = await supa.from('rutinas').delete().eq('id', id);
+    if (error) return toast(error.message, 'error');
+    toast('Rutina borrada', 'success');
+    await cargarRutinasDeAdulto();
+  });
 }
 
 async function copiarLink() {
